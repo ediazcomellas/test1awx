@@ -88,15 +88,14 @@
      get_url:
         url: http://www.inetutil.info/psa/miapp.tar.bz
         dest: /tmp
-     delegate_to: master
      tags: actualizar
 
    - name: Desempaquetar la aplicacion
      unarchive:
         src: /tmp/miapp.tar.bz
         dest: /var/www/html
+        remote_src: true
      tags: actualizar
-     delegate_to: master
 
    - name: configurar la bbdd en la aplicacion
      lineinfile:
