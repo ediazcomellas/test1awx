@@ -1,0 +1,120 @@
+---
+- name: Desplegar LAMP
+  hosts: target2
+  vars:
+   - http_port: 80
+   - webserver_hostname: miservidor.local
+   - webserver_admin: perico@miservidor.local
+  tasks:
+   - name: instalar software
+     apt: name={{ item }} state=present
+     loop: 
+      - apache2
+      - mysql-server
+      - libapache2-mod-php
+      - php-mysql
+     tags: setup
+
+   - name: Establecer el servername
+     lineinfile: 
+        regexp: ".*ServerName.*"
+        line: "          ServerName  {{ webserver_hostname }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf
+     notify: reiniciar apache
+     tags: setup
+
+   - name: Establecer el serveradmin
+     lineinfile:
+        regexp: ".*ServerAdmin.*"
+        line: "          ServerAdmin  {{ webserver_admin }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf
+     notify: reiniciar apache
+     tags: setup
+
+   - name: Crear pagina web
+     template: 
+        src: index.html.j2
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: 0644        
+     tags: 
+        - setup
+        - actualizar
+
+
+   - name: copiar dump de la bbdd
+     copy:  src=miapp.sql dest=/tmp/miapp.sql
+     tags: setup
+
+   - name: instalar python-mysqldb
+     apt: name=python-mysqldb state=present
+     tags: setup
+
+   - name: Instanciar la bbdd
+     mysql_db: 
+        name: miapp
+        state: present
+     tags: setup
+
+   - name: comprobar si ya tenemos tabla y datos 
+     shell: "echo 'select count(*) from usuarios' | mysql --skip-column-names miapp "
+     register: salida_mysql
+     failed_when: false
+     changed_when: false
+     tags: setup
+
+   - debug: var=salida_mysql
+   
+   - name: Copiar los datos
+     mysql_db: 
+        name: miapp
+        state: import
+        target: /tmp/miapp.sql
+     when: salida_mysql.rc != 0 or salida_mysql.stdout == "0"
+     tags: setup
+
+   - name: Crear el usuario de la bbdd
+     mysql_user:
+        name: miappuser
+        password: miappassword123
+        state: present
+        priv: 'miapp.*:ALL'
+     tags: setup
+
+   - name: Descargar la aplicacion al servidor local
+     get_url:
+        url: http://www.inetutil.info/psa/miapp.tar.bz
+        dest: /tmp
+     delegate_to: master
+     tags: actualizar
+
+   - name: Desempaquetar la aplicacion
+     unarchive:
+        src: /tmp/miapp.tar.bz
+        dest: /var/www/html
+     tags: actualizar
+
+   - name: configurar la bbdd en la aplicacion
+     lineinfile:
+        dest: /var/www/html/config.php
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.reemplazo }}"
+        state: present
+     loop:
+        - { regexp: '\$username.*=.*', reemplazo: '$username = "miappuser";' }
+        - { regexp: '\$password.*=.*', reemplazo: '$password = "miappassword123";' }
+        - { regexp: '\$dbname.*=.*',   reemplazo: '$dbname = "miapp";' }
+     tags: actualizar
+
+   - name: Eliminar el index.html
+     file:
+        path: /var/www/html/index.html
+        state: absent
+     tags: actualizar
+
+  handlers:
+   - name: reiniciar apache
+     service: name=apache2 state=restarted

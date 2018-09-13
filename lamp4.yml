@@ -1,0 +1,20 @@
+---
+- name: Desplegar LAMP
+  hosts: target2
+  vars:
+   - http_port: 80
+   - webserver_hostname: miservidor.local
+  tasks:
+   - name: instalar software
+     apt: name={{ item }} state=present
+     loop: 
+      - apache2
+      - mysql-server
+      - libapache2-mod-php
+
+   - name: Establecer el servername
+     lineinfile: 
+        regexp: ".*ServerName.*"
+        line: "          ServerName  {{ webserver_hostname }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf

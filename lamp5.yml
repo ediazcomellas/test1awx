@@ -1,0 +1,36 @@
+---
+- name: Desplegar LAMP
+  hosts: target2
+  vars:
+   - http_port: 80
+   - webserver_hostname: miservidor.local
+  vars_prompt:
+   - name: webserver_admin 
+     prompt: "Quien va  a gestionar este servidor (email): "
+     default: "perico@{{ webserver_hostname }}"
+     private: no
+
+  tasks:
+   - name: instalar software
+     apt: name={{ item }} state=present
+     loop: 
+      - apache2
+      - mysql-server
+      - libapache2-mod-php
+
+   - name: Establecer el servername
+     lineinfile: 
+        regexp: ".*ServerName.*"
+        line: "          ServerName  {{ webserver_hostname }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf
+
+   - name: Establecer el serveradmin
+     lineinfile:
+        regexp: ".*ServerAdmin.*"
+        line: "          ServerAdmin  {{ webserver_admin }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf
+
+
+

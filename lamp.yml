@@ -1,0 +1,11 @@
+---
+- name: Desplegar LAMP
+  hosts: target2
+  vars:
+   - http_port: 80
+   - webserver_hostname: miservidor
+  tasks:
+   - name: instalar apache2
+     apt: name=apache2 state=present
+
+

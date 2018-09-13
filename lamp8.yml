@@ -1,0 +1,76 @@
+---
+- name: Desplegar LAMP
+  hosts: target2
+  vars:
+   - http_port: 80
+   - webserver_hostname: miservidor.local
+   - webserver_admin: perico@miservidor.local
+  tasks:
+   - name: instalar software
+     apt: name={{ item }} state=present
+     loop: 
+      - apache2
+      - mysql-server
+      - libapache2-mod-php
+
+   - name: Establecer el servername
+     lineinfile: 
+        regexp: ".*ServerName.*"
+        line: "          ServerName  {{ webserver_hostname }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf
+     notify: reiniciar apache
+
+   - name: Establecer el serveradmin
+     lineinfile:
+        regexp: ".*ServerAdmin.*"
+        line: "          ServerAdmin  {{ webserver_admin }} "
+        state: present
+        path: /etc/apache2/sites-enabled/000-default.conf
+     notify: reiniciar apache
+
+   - name: Crear pagina web
+     template: 
+        src: index.html.j2
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: 0644        
+
+
+   - name: copiar dump de la bbdd
+     copy:  src=miapp.sql dest=/tmp/miapp.sql
+
+   - name: instalar python-mysqldb
+     apt: name=python-mysqldb state=present
+
+   - name: Instanciar la bbdd
+     mysql_db: 
+        name: miapp
+        state: present
+
+   - name: comprobar si ya tenemos tabla y datos 
+     shell: "echo 'select count(*) from usuarios' | mysql --skip-column-names miapp "
+     register: salida_mysql
+     failed_when: false
+     changed_when: false
+
+   - debug: var=salida_mysql
+   
+   - name: Copiar los datos
+     mysql_db: 
+        name: miapp
+        state: import
+        target: /tmp/miapp.sql
+     when: salida_mysql.rc != 0 or salida_mysql.stdout == "0"
+
+   - name: Crear el usuario de la bbdd
+     mysql_user:
+        name: miappuser
+        password: miappassword123
+        state: present
+        priv: 'miapp.*:ALL'
+
+  handlers:
+   - name: reiniciar apache
+     service: name=apache2 state=restarted

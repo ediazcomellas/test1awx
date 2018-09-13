@@ -1,0 +1,16 @@
+---
+- name: Desplegar LAMP
+  hosts: target2
+  vars:
+   - http_port: 80
+   - webserver_hostname: miservidor
+  tasks:
+   - name: instalar software
+     apt: name={{ item }} state=present
+     loop: 
+      - apache2
+      - mysql-server
+      - libapache2-mod-php
+
+
+
