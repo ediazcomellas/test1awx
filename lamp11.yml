@@ -96,6 +96,7 @@
         src: /tmp/miapp.tar.bz
         dest: /var/www/html
      tags: actualizar
+     delegate_to: master
 
    - name: configurar la bbdd en la aplicacion
      lineinfile:
