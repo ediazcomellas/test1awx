@@ -1,6 +1,7 @@
 ---
 - name: ver variables
-  hosts: all
+  hosts: localhost
+  connection: local
   vars: 
      mivaultpass: !vault |
           $ANSIBLE_VAULT;1.1;AES256
